@@ -1,111 +1,102 @@
 # app.py
-
 import streamlit as st
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-import plotly.express as px
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Load the dataset
-url = "https://www.kaggle.com/andrewmvd/heart-failure-clinical-data/data"
-st.title("Heart Failure Prediction Data Analysis")
+data = pd.read_csv("heart_failure_clinical_records_dataset.csv")
+
+# Sidebar
+st.sidebar.title("Heart Failure Prediction")
+age = st.sidebar.slider("Select Age", min_value=29, max_value=100, value=50)
+ejection_fraction = st.sidebar.slider("Select Ejection Fraction", min_value=14, max_value=80, value=50)
+serum_creatinine = st.sidebar.slider("Select Serum Creatinine", min_value=0.5, max_value=9.4, value=1.0)
+serum_sodium = st.sidebar.slider("Select Serum Sodium", min_value=113, max_value=148, value=135)
+
+# Features
+features = ['age', 'ejection_fraction', 'serum_creatinine', 'serum_sodium']
+X = data[features]
+y = data['DEATH_EVENT']
+# Model training
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model = RandomForestClassifier()
+model.fit(X_train, y_train)
+
+# Prediction
+prediction = model.predict([[age, ejection_fraction, serum_creatinine, serum_sodium]])
+
+# Main App
+st.title("Heart Failure Prediction App")
 
 # Introduction
-st.header("Introduction")
-st.write(
-    "This Streamlit app analyzes the Heart Failure Prediction dataset. "
-    "The dataset contains various clinical features, and the goal is to predict "
-    "whether a patient is at risk of heart failure."
-)
+st.write("This app predicts the likelihood of heart failure based on clinical data.")
 
-# Load data
-@st.cache_data
-def load_data():
-    data = pd.read_csv("heart_failure_clinical_records_dataset.csv")
-    return data
+# User Input
+st.sidebar.header("User Input Features")
+st.sidebar.write(f"Age: {age}")
+st.sidebar.write(f"Ejection Fraction: {ejection_fraction}")
+st.sidebar.write(f"Serum Creatinine: {serum_creatinine}")
+st.sidebar.write(f"Serum Sodium: {serum_sodium}")
 
-df = load_data()
+# Prediction
+st.header("Prediction Result")
+st.write("Outcome: ", "Heart Failure" if prediction[0] == 1 else "No Heart Failure")
 
-# Display raw data
-st.subheader("Raw Data")
-st.dataframe(df)
+# Data Analysis
+st.header("Data Analysis")
 
-# Summary Statistics
-st.subheader("Summary Statistics")
-st.write(df.describe())
 
-# Visualizations
-st.header("Data Visualizations")
+# Pairplot
+st.subheader("Pairplot")
+pairplot = sns.pairplot(data, hue="DEATH_EVENT")
+st.pyplot(pairplot)
 
-# Correlation Matrix
-st.subheader("Correlation Matrix")
-fig_corr = px.imshow(df.corr(), title="Correlation Matrix")
-st.plotly_chart(fig_corr)
+# Correlation Heatmap
+st.subheader("Correlation Heatmap")
+correlation_matrix = data.corr()
+figure, ax = plt.subplots(figsize=(8, 6))
+heatmap = sns.heatmap(correlation_matrix, annot=True, cmap="coolwarm", linewidths=.5, ax=ax)
+st.pyplot(figure)
 
-# Age Distribution
-st.subheader("Age Distribution")
-fig_age_dist = px.histogram(df, x="age", title="Age Distribution")
-st.plotly_chart(fig_age_dist)
+#Additional visualizations
+st.subheader("Additional Visualization")
 
-# Gender Distribution
-st.subheader("Gender Distribution")
-fig_gender_dist = px.pie(df, names="sex", title="Gender Distribution")
-st.plotly_chart(fig_gender_dist)
+#Boxplot for age and death event
+st.write("Boxplot for Age and Death Event")
+fig, ax = plt.subplots()
+sns.boxplot(x="DEATH_EVENT", y="age", data=data, ax=ax)
+st.pyplot(fig, clear_figure=True)
 
-# Heart Failure Events
-st.subheader("Heart Failure Events")
-fig_heart_failure = px.pie(df, names="DEATH_EVENT", title="Heart Failure Events")
-st.plotly_chart(fig_heart_failure)
 
-# Feature Selection
-st.header("Feature Selection and Model Training")
+#Countplot for Death Event
+st.write("Countplot for Death Event")
+fig, ax = plt.subplots()
+sns.countplot(x="DEATH_EVENT", data=data, ax=ax)
+st.pyplot(fig, clear_figure=True)
 
-# Select Features and Target
-features = df.drop("DEATH_EVENT", axis=1)
-target = df["DEATH_EVENT"]
-
-# Split the data
-X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
-
-# Train a Random Forest Classifier
-clf = RandomForestClassifier()
-clf.fit(X_train, y_train)
-
-# Predictions
-y_pred = clf.predict(X_test)
-
-# Model Evaluation
-st.subheader("Model Evaluation")
-accuracy = accuracy_score(y_test, y_pred)
-st.write(f"Accuracy: {accuracy:.2f}")
+#model evaluation metrics
+st.header("Model Evaluation Metrics")
 
 # Confusion Matrix
 st.subheader("Confusion Matrix")
+y_pred = model.predict(X_test)
+fig, ax = plt.subplots()
 cm = confusion_matrix(y_test, y_pred)
-fig_conf_matrix = px.imshow(cm, labels=dict(x="Predicted", y="Actual"), x=["0", "1"], y=["0", "1"])
-st.plotly_chart(fig_conf_matrix)
+sns.heatmap(cm, annot=True, cmap='Blues', fmt='g', ax=ax)
+st.pyplot(fig)
 
-# Classification Report
+#Classification Report
 st.subheader("Classification Report")
-st.text(classification_report(y_test, y_pred))
+classification_rep = classification_report(y_test, y_pred)
+st.text(classification_rep)
 
 # Conclusion
-st.header("Conclusion")
-st.write(
-    "In this analysis, we explored the Heart Failure Prediction dataset, performed visualizations, "
-    "and trained a Random Forest Classifier to predict heart failure events. "
-    "The model achieved a certain accuracy, but further fine-tuning and feature engineering "
-    "could enhance its performance."
-)
+st.title("Conclusion")
+st.write("In this data analysis and prediction project, we utilized clinical data to predict the likelihood of heart failure. The machine learning model, based on features such as age, ejection fraction, serum creatinine, and serum sodium, showed promising results. The interactive Streamlit app allows users to input their information and receive predictions in real-time.")
 
-# Recommendations
-st.header("Recommendations")
-st.write(
-    "For a more comprehensive analysis and accurate predictions, it's recommended to:"
-    "\n1. Explore feature engineering techniques."
-    "\n2. Fine-tune the model hyperparameters."
-    "\n3. Consider other machine learning algorithms."
-    "\n4. Validate the model on a larger dataset."
-)
-
+# Acknowledgment
+st.write("Acknowledgment: This project uses the Heart Failure Prediction dataset available on Kaggle.")
